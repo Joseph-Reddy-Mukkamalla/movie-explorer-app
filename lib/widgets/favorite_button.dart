@@ -41,12 +41,15 @@ class _FavoriteButtonState extends State<FavoriteButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: toggleFavorite,
-      child: Icon(
-        isFavorite ? Icons.favorite : Icons.favorite_border,
-        color: Colors.redAccent,
-        size: 20,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: toggleFavorite,
+        child: Icon(
+          isFavorite ? Icons.favorite : Icons.favorite_border,
+          color: Colors.redAccent,
+          size: 20,
+        ),
       ),
     );
   }

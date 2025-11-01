@@ -7,11 +7,15 @@ import '../services/movie_service.dart';
 
 class MovieDetailsPage extends StatelessWidget {
   final Movie movie;
-  final MovieService movieService; // required for similar movies
+  final MovieService movieService;
+  final bool showSimilar; // If false, show other favorites instead
+  final List<Movie>? otherMovies; // Optional list of other movies to show (for favorites)
 
   const MovieDetailsPage({
     required this.movie,
     required this.movieService,
+    this.showSimilar = true,
+    this.otherMovies,
     super.key,
   });
 
@@ -20,11 +24,13 @@ class MovieDetailsPage extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Similar movies based on shared genres
-    final similarMovies = movieService.movies
-        .where((m) => m != movie && m.genres.any((g) => movie.genres.contains(g)))
-        .take(10)
-        .toList();
+    // Get movies to show in the bottom section
+    final moviesToShow = showSimilar
+        ? movieService.movies
+            .where((m) => m != movie && m.genres.any((g) => movie.genres.contains(g)))
+            .take(10)
+            .toList()
+        : otherMovies ?? [];
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -79,8 +85,8 @@ class MovieDetailsPage extends StatelessWidget {
                           ),
                     const SizedBox(height: 24),
                     // Similar movies section
-                    similarMovies.isNotEmpty
-                        ? similarMoviesSection(similarMovies, context)
+                    moviesToShow.isNotEmpty
+                        ? relatedMoviesSection(moviesToShow, context, showSimilar)
                         : Container(),
                     const SizedBox(height: 24),
                   ],
@@ -156,14 +162,14 @@ class MovieDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget similarMoviesSection(List<Movie> movies, BuildContext context) {
+  Widget relatedMoviesSection(List<Movie> movies, BuildContext context, bool showingSimilar) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            "Similar Movies",
+            showingSimilar ? "Similar Movies" : "Other Favorites",
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),

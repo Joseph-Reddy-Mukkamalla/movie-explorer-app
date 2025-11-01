@@ -1,9 +1,13 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/movie.dart';
 import '../services/movie_service.dart';
 import '../widgets/movie_card.dart';
 import 'movie_details_page.dart';
+import 'favorites_page.dart';
+import 'search_page.dart';
 
 class HomePage extends StatefulWidget {
   final MovieService movieService;
@@ -56,33 +60,106 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Movie Explorer'),
-        backgroundColor: Colors.deepPurple,
+      // Custom gradient top bar to match OTT look
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(72),
+        child: Container(
+          color: Colors.black,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
+              child: Row(
+                children: [
+                  // App icon and title
+                  Row(
+                    children: [
+                      SvgPicture.asset(
+                        'assets/icons/movie_reel.svg',
+                        width: 32,
+                        height: 32,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.deepPurpleAccent,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'MovieExplorer',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Actions on the right
+                  Row(
+                    children: [
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () async {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FavoritesPage(movieService: widget.movieService),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.favorite_border,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SearchPage(movieService: widget.movieService),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.search_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search movies...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white12,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
-            ),
-          ),
+          const SizedBox(height: 16),
           // Expanded list
           Expanded(
             child: allMovies.isEmpty
