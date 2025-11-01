@@ -97,20 +97,51 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   )
-                : ListView(
-                    children: [
-                      // If searchQuery is active, show only search results
-                      if (searchQuery.isNotEmpty)
-                        buildSection("Search Results", searchMovies())
-                      else ...[
-                        buildSection("Trending", getTrendingMovies()),
-                        buildSection("Random Picks", getRandomMovies()),
-                        for (var genre in randomGenres)
-                          buildSection(genre, filterMovies(genre)),
-                      ],
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                : searchQuery.isNotEmpty
+                    ? LayoutBuilder(
+                        builder: (context, constraints) {
+                          final cardWidth = 160.0;
+                          final crossAxisCount = max(
+                              2,
+                              (constraints.maxWidth / cardWidth).floor());
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              childAspectRatio: 0.55,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 20,
+                            ),
+                            itemCount: searchMovies().length,
+                            itemBuilder: (context, index) {
+                              final movie = searchMovies()[index];
+                              return MovieCard(
+                                movie: movie,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MovieDetailsPage(
+                                        movie: movie,
+                                        movieService: widget.movieService,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      )
+                    : ListView(
+                        children: [
+                          buildSection("Trending", getTrendingMovies()),
+                          buildSection("Random Picks", getRandomMovies()),
+                          for (var genre in randomGenres)
+                            buildSection(genre, filterMovies(genre)),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
           ),
         ],
       ),

@@ -8,53 +8,32 @@ class CsvParser {
     // Debug: log asset size
     // ignore: avoid_print
     print('CsvParser: loaded asset "$path" size=${data.length}');
-    var rows = const CsvToListConverter().convert(data);
+    // Normalize line endings to \n for web compatibility
+    var normalizedData = data.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    
+    // Split the data into lines manually
+    var lines = normalizedData.split('\n');
     // ignore: avoid_print
-    print('CsvParser: parsed rows=${rows.length} using default eol');
-    // If parsing produced only 1 row, try alternative EOLs (web build may alter line endings)
-    if (rows.length <= 1) {
+    print('CsvParser: split into ${lines.length} lines');
+    
+    // Parse each line individually to handle any CSV formatting
+    var rows = <List<dynamic>>[];
+    for (var line in lines) {
+      if (line.trim().isEmpty) continue;
       try {
-        rows = const CsvToListConverter(eol: '\r\n').convert(data);
-        // ignore: avoid_print
-        print('CsvParser: parsed rows=${rows.length} using eol=\r\n');
-      } catch (_) {}
-    }
-    if (rows.length <= 1) {
-      try {
-        rows = const CsvToListConverter(eol: '\n').convert(data);
-        // ignore: avoid_print
-        print('CsvParser: parsed rows=${rows.length} using eol=\\n');
-      } catch (_) {}
-    }
-    if (rows.length <= 1) {
-      try {
-        rows = const CsvToListConverter(eol: '\r').convert(data);
-        // ignore: avoid_print
-        print('CsvParser: parsed rows=${rows.length} using eol=\\r');
-      } catch (_) {}
-    }
-    // As a last resort, split by any newline regex and try to parse each line separately
-    if (rows.length <= 1) {
-      try {
-        final lines = data.split(RegExp(r'\r\n|\n|\r'));
-        // ignore: avoid_print
-        print('CsvParser: fallback split lines=${lines.length}');
-        final temp = <List<dynamic>>[];
-        for (var line in lines) {
-          if (line.trim().isEmpty) continue;
-          final parsed = const CsvToListConverter().convert(line);
-          if (parsed.isNotEmpty) temp.add(parsed.first);
-        }
-        if (temp.isNotEmpty) {
-          rows = temp;
-          // ignore: avoid_print
-          print('CsvParser: rebuilt rows=${rows.length} from line-splitting fallback');
+        var parsed = const CsvToListConverter(shouldParseNumbers: false).convert(line);
+        if (parsed.isNotEmpty) {
+          rows.add(parsed.first);
         }
       } catch (e) {
         // ignore: avoid_print
-        print('CsvParser: fallback parsing failed: $e');
+        print('CsvParser: failed to parse line: $e');
+        continue;
       }
     }
+    
+    // ignore: avoid_print
+    print('CsvParser: successfully parsed ${rows.length} rows');
     List<Movie> movies = [];
     for (var i = 1; i < rows.length; i++) {
       try {
