@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
   String searchQuery = '';
   List<String> randomGenres = [];
   late PageController _trendingPageController;
-  int _trendingCurrentPage = 0;
+  int _trendingCurrentPage = 0; // stores REAL index (0..len-1)
   Timer? _trendingAutoTimer;
   double _trendingViewportFraction = 0.56;
   List<Movie> _trendingMovies = [];
@@ -37,27 +37,46 @@ class _HomePageState extends State<HomePage> {
     pickRandomGenres();
     _trendingMovies = getTrendingMovies();
     _randomPicks = getRandomMovies();
+
+    // Initialize in the MIDDLE copy to enable seamless looping.
+    // If empty, keep initialPage = 0.
+    final initPage = _trendingMovies.isEmpty ? 0 : _trendingMovies.length;
+
     _trendingPageController = PageController(
       viewportFraction: _trendingViewportFraction,
-      initialPage: _trendingMovies.isEmpty ? 0 : _trendingMovies.length,
+      initialPage: initPage,
     );
+
+    // current page should reflect the REAL index (0..len-1)
+    _trendingCurrentPage = 500000000;
+
     _startTrendingAutoSlide();
   }
 
   void _startTrendingAutoSlide() {
     _trendingAutoTimer?.cancel();
-    _trendingAutoTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (_trendingMovies.isEmpty ||
-          !mounted ||
-          !_trendingPageController.hasClients) return;
 
-      final next = (_trendingCurrentPage + 1) % _trendingMovies.length;
+    _trendingAutoTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted ||
+          !_trendingPageController.hasClients ||
+          _trendingMovies.isEmpty) return;
+
+      // Always animate to the next REAL page, but target the middle-copy index.
+      final next = _trendingCurrentPage + 1;
       _trendingPageController.animateToPage(
-        next + _trendingMovies.length,
+        next,
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOut,
       );
+      _trendingCurrentPage = next;
+
     });
+  }
+
+  // Reset the auto-slide timer (used for ANY manual interaction).
+  void _resetAutoSlideTimer() {
+    _trendingAutoTimer?.cancel();
+    _startTrendingAutoSlide();
   }
 
   void pickRandomGenres() {
@@ -72,14 +91,16 @@ class _HomePageState extends State<HomePage> {
 
   void _ensureTrendingController(double viewportFraction) {
     if ((_trendingViewportFraction - viewportFraction).abs() > 0.001) {
-      final current = _trendingCurrentPage % _trendingMovies.length;
+      final len = _trendingMovies.length;
+      final currentReal = len == 0 ? 0 : _trendingCurrentPage % len;
       try {
         _trendingPageController.dispose();
       } catch (_) {}
       _trendingViewportFraction = viewportFraction;
       _trendingPageController = PageController(
         viewportFraction: _trendingViewportFraction,
-        initialPage: current + _trendingMovies.length,
+        // Always re-center on the middle copy for seamless loop
+        initialPage: len == 0 ? 0 : currentReal + len,
       );
     }
   }
@@ -309,151 +330,149 @@ class _HomePageState extends State<HomePage> {
 
           return Stack(
             children: [
-              PageView.builder(
-                controller: _trendingPageController,
-                itemCount: _trendingMovies.length * 3,
-                onPageChanged: (index) {
-                  final realIndex = index % _trendingMovies.length;
-                  setState(() => _trendingCurrentPage = index);
-
-                  if (index < _trendingMovies.length) {
-                    _trendingPageController
-                        .jumpToPage(index + _trendingMovies.length);
-                  } else if (index >= _trendingMovies.length * 2) {
-                    _trendingPageController
-                        .jumpToPage(index - _trendingMovies.length);
-                  }
+              // Wrap with GestureDetector to catch ANY user touch and reset timer.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanDown: (_) {
+                  _resetAutoSlideTimer(); // manual swipe starts → reset
                 },
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final movie = _trendingMovies[index % _trendingMovies.length];
-                  final bool isCentered = (index % _trendingMovies.length) ==
-                      (_trendingCurrentPage % _trendingMovies.length);
+                child: PageView.builder(
+                  controller: _trendingPageController,
+                  // 3 copies for seamless loop (prev/middle/next)
+                  itemCount: 10000000,  // effectively infinite
+                  onPageChanged: (index) {
+                    final real = index % _trendingMovies.length;
+                    setState(() => _trendingCurrentPage = index);
+                  },
+                  physics: const BouncingScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final len = _trendingMovies.length;
+                    final realIndex = index % _trendingMovies.length;
+                    final movie = _trendingMovies[realIndex];
+                    final bool isCentered =
+                        (index % len) == (_trendingCurrentPage % len);
 
-                  return AnimatedPadding(
-                    duration: const Duration(milliseconds: 300),
-                    padding: EdgeInsets.symmetric(
-                      vertical: isCentered ? 0 : 16,
-                      horizontal: 8,
-                    ),
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () {
-                          if (!isCentered) {
-                            _trendingPageController.animateToPage(
-                              index,
-                              duration: const Duration(milliseconds: 450),
-                              curve: Curves.easeInOut,
-                            );
-                          } else {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MovieDetailsPage(
-                                  movie: movie,
-                                  movieService: widget.movieService,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        child: AnimatedScale(
-                          scale: isCentered ? 1.0 : _getProgressiveScale(index),
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth: desiredCardWidth,
-                                    maxHeight: 300, // Increased height for posters
+                    return AnimatedPadding(
+                      duration: const Duration(milliseconds: 300),
+                      padding: EdgeInsets.symmetric(
+                        vertical: isCentered ? 0 : 16,
+                        horizontal: 8,
+                      ),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (!isCentered) {
+                              final targetPage = index;
+                              _trendingPageController.animateToPage(
+                                targetPage,
+                                duration: const Duration(milliseconds: 450),
+                                curve: Curves.easeInOut,
+                              );
+                              _resetAutoSlideTimer(); // manual tap → reset
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MovieDetailsPage(
+                                    movie: movie,
+                                    movieService: widget.movieService,
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Stack(
-                                      children: [
-                                        Image.network(
-                                          movie.posterUrl,
-                                          fit: BoxFit.contain,
-                                          alignment: Alignment.center,
-                                          errorBuilder: (context, error,
-                                                  stackTrace) =>
-                                              Container(
-                                            color: Colors.black26,
-                                            child: Center(
-                                              child: Text(
-                                                movie.title,
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                    color: Colors.white60,
-                                                    fontSize: 14),
+                                ),
+                              );
+                            }
+                          },
+                          child: AnimatedScale(
+                            scale: isCentered ? 1.0 : _getProgressiveScale(index),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: desiredCardWidth,
+                                      maxHeight: 300, // Increased height for posters
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Stack(
+                                        children: [
+                                          Image.network(
+                                            movie.posterUrl,
+                                            fit: BoxFit.contain,
+                                            alignment: Alignment.center,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                Container(
+                                              color: Colors.black26,
+                                              child: Center(
+                                                child: Text(
+                                                  movie.title,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                      color: Colors.white60,
+                                                      fontSize: 14),
+                                                ),
                                               ),
                                             ),
                                           ),
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black54,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.star,
-                                                    color: Colors.amber,
-                                                    size: 14),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  movie.voteAverage
-                                                      .toStringAsFixed(1),
-                                                  style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 12),
-                                                ),
-                                              ],
+                                          Positioned(
+                                            top: 8,
+                                            right: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.star,
+                                                      color: Colors.amber, size: 14),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    movie.voteAverage.toStringAsFixed(1),
+                                                    style: const TextStyle(
+                                                        color: Colors.white, fontSize: 12),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: desiredCardWidth,
-                                child: Text(
-                                  movie.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.2,
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: desiredCardWidth,
+                                  child: Text(
+                                    movie.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.2,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
+
               // Left Arrow
               Positioned(
                 left: 6,
@@ -467,18 +486,21 @@ class _HomePageState extends State<HomePage> {
                       icon: const Icon(Icons.chevron_left, color: Colors.white),
                       onPressed: () {
                         if (_trendingMovies.isEmpty) return;
-                        final prev =
-                            ((_trendingCurrentPage - 1) % _trendingMovies.length);
+                        final len = _trendingMovies.length;
+                        final prev = (_trendingCurrentPage - 1) % len;
+                        final target = prev < 0 ? prev + len : prev;
                         _trendingPageController.animateToPage(
-                          prev + _trendingMovies.length,
+                          target + len, // middle copy
                           duration: const Duration(milliseconds: 450),
                           curve: Curves.easeInOut,
                         );
+                        _resetAutoSlideTimer(); // manual arrow → reset
                       },
                     ),
                   ),
                 ),
               ),
+
               // Right Arrow
               Positioned(
                 right: 6,
@@ -489,22 +511,25 @@ class _HomePageState extends State<HomePage> {
                     decoration: const BoxDecoration(
                         color: Colors.black45, shape: BoxShape.circle),
                     child: IconButton(
-                      icon:
-                          const Icon(Icons.chevron_right, color: Colors.white),
+                      icon: const Icon(Icons.chevron_right, color: Colors.white),
                       onPressed: () {
                         if (_trendingMovies.isEmpty) return;
-                        final next =
-                            ((_trendingCurrentPage + 1) % _trendingMovies.length);
+                        final len = _trendingMovies.length;
+                        final next = _trendingCurrentPage + 1;
                         _trendingPageController.animateToPage(
-                          next + _trendingMovies.length,
+                          next,
                           duration: const Duration(milliseconds: 450),
                           curve: Curves.easeInOut,
                         );
+                        _trendingCurrentPage = next;
+                        _resetAutoSlideTimer();
+
                       },
                     ),
                   ),
                 ),
               ),
+
               // Dots Indicator
               Positioned(
                 left: 0,
@@ -514,17 +539,23 @@ class _HomePageState extends State<HomePage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: List.generate(_trendingMovies.length, (i) {
-                      final active =
-                          i == (_trendingCurrentPage % _trendingMovies.length);
+                      final active = i == (_trendingCurrentPage % _trendingMovies.length);
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
-                          onTap: () =>
-                              _trendingPageController.animateToPage(
-                            i + _trendingMovies.length,
-                            duration: const Duration(milliseconds: 450),
-                            curve: Curves.easeInOut,
-                          ),
+                      onTap: () {
+                        final realCurrent = _trendingCurrentPage % _trendingMovies.length;
+                        final delta = i - realCurrent;
+                        final targetPage = _trendingCurrentPage + delta;
+
+                        _trendingPageController.animateToPage(
+                          targetPage,
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeInOut,
+                        );
+
+                        _resetAutoSlideTimer();
+                      },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             margin: const EdgeInsets.symmetric(horizontal: 4),

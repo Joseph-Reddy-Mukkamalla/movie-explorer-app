@@ -57,7 +57,9 @@ class _SearchPageState extends State<SearchPage> {
     var list = widget.movieService.movies;
 
     if (query.isNotEmpty) {
-      list = list.where((m) => m.title.toLowerCase().contains(query.toLowerCase())).toList();
+      list = list
+          .where((m) => m.title.toLowerCase().contains(query.toLowerCase()))
+          .toList();
     }
 
     if (selectedGenre != null) {
@@ -134,131 +136,166 @@ class _SearchPageState extends State<SearchPage> {
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white12,
+                hintStyle: const TextStyle(color: Colors.white60),
+                prefixIconColor: Colors.white70,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
               ),
+              style: const TextStyle(color: Colors.white),
               onChanged: (v) => setState(() => query = v),
             ),
           ),
 
-          /// FILTER DROPDOWNS
+          /// FILTER DROPDOWNS (NOW SCROLLABLE → NO OVERFLOW)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedGenre,
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Genre')),
-                      ...genres.map((g) => DropdownMenuItem(value: g, child: Text(g))),
-                    ],
-                    onChanged: (v) => setState(() => selectedGenre = v),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 200,
+                    child: DropdownButtonFormField<String>(
+                      value: selectedGenre,
+                      dropdownColor: Colors.black87,
+                      items: [
+                        const DropdownMenuItem(
+                            value: null,
+                            child: Text('Genre', style: TextStyle(color: Colors.white))),
+                        ...genres.map(
+                            (g) => DropdownMenuItem(value: g, child: Text(g))),
+                      ],
+                      onChanged: (v) => setState(() => selectedGenre = v),
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedLanguage,
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Language')),
-                      ...languages.map((l) => DropdownMenuItem(value: l, child: Text(l))),
-                    ],
-                    onChanged: (v) => setState(() => selectedLanguage = v),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  const SizedBox(width: 8),
+
+                  SizedBox(
+                    width: 200,
+                    child: DropdownButtonFormField<String>(
+                      value: selectedLanguage,
+                      dropdownColor: Colors.black87,
+                      items: [
+                        const DropdownMenuItem(
+                            value: null,
+                            child: Text('Language',
+                                style: TextStyle(color: Colors.white))),
+                        ...languages
+                            .map((l) => DropdownMenuItem(value: l, child: Text(l))),
+                      ],
+                      onChanged: (v) => setState(() => selectedLanguage = v),
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedYear,
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Year')),
-                      ...years.map((y) => DropdownMenuItem(value: y, child: Text(y))),
-                    ],
-                    onChanged: (v) => setState(() => selectedYear = v),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  const SizedBox(width: 8),
+
+                  SizedBox(
+                    width: 120,
+                    child: DropdownButtonFormField<String>(
+                      value: selectedYear,
+                      dropdownColor: Colors.black87,
+                      items: [
+                        const DropdownMenuItem(
+                            value: null,
+                            child: Text('Year', style: TextStyle(color: Colors.white))),
+                        ...years.map(
+                            (y) => DropdownMenuItem(value: y, child: Text(y))),
+                      ],
+                      onChanged: (v) => setState(() => selectedYear = v),
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
           /// SORTING
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      query = '';
-                      selectedGenre = null;
-                      selectedLanguage = null;
-                      selectedYear = null;
-                      sortBy = SortBy.popularity;
-                      ascending = false;
-                    });
-                  },
-                  icon: const Icon(Icons.clear_all),
-                  label: const Text('Clear Filters'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    backgroundColor: Colors.white10,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        query = '';
+                        selectedGenre = null;
+                        selectedLanguage = null;
+                        selectedYear = null;
+                        sortBy = SortBy.popularity;
+                        ascending = false;
+                      });
+                    },
+                    icon: const Icon(Icons.clear_all, color: Colors.white70),
+                    label: const Text('Clear Filters', style: TextStyle(color: Colors.white70)),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white10,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                const Text('Sort:', style: TextStyle(color: Colors.white)),
-                const SizedBox(width: 8),
-                DropdownButton<SortBy>(
-                  value: sortBy,
-                  dropdownColor: Colors.grey[900],
-                  items: const [
-                    DropdownMenuItem(value: SortBy.popularity, child: Text('Popularity')),
-                    DropdownMenuItem(value: SortBy.voteCount, child: Text('Vote Count')),
-                    DropdownMenuItem(value: SortBy.voteAverage, child: Text('Vote Average')),
-                    DropdownMenuItem(value: SortBy.releaseDate, child: Text('Release Date')),
-                  ],
-                  onChanged: (v) => setState(() => sortBy = v ?? SortBy.voteCount),
-                ),
-                const SizedBox(width: 12),
-                const Text('Order:', style: TextStyle(color: Colors.white)),
-                const SizedBox(width: 8),
-                ToggleButtons(
-                  isSelected: [!ascending, ascending],
-                  onPressed: (i) => setState(() => ascending = i == 1),
-                  children: const [
-                    Icon(Icons.arrow_downward),
-                    Icon(Icons.arrow_upward),
-                  ],
-                ),
-              ],
+
+                  const SizedBox(width: 16),
+
+                  const Text('Sort:', style: TextStyle(color: Colors.white)),
+                  const SizedBox(width: 8),
+
+                  DropdownButton<SortBy>(
+                    value: sortBy,
+                    dropdownColor: Colors.black87,
+                    style: const TextStyle(color: Colors.white),
+                    items: const [
+                      DropdownMenuItem(value: SortBy.popularity, child: Text('Popularity')),
+                      DropdownMenuItem(value: SortBy.voteCount, child: Text('Vote Count')),
+                      DropdownMenuItem(value: SortBy.voteAverage, child: Text('Vote Average')),
+                      DropdownMenuItem(value: SortBy.releaseDate, child: Text('Release Date')),
+                    ],
+                    onChanged: (v) => setState(() => sortBy = v!),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  const Text('Order:', style: TextStyle(color: Colors.white)),
+                  const SizedBox(width: 8),
+
+                  ToggleButtons(
+                    isSelected: [!ascending, ascending],
+                    onPressed: (i) => setState(() => ascending = i == 1),
+                    children: const [
+                      Icon(Icons.arrow_downward, color: Colors.white),
+                      Icon(Icons.arrow_upward, color: Colors.white),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
 
+
           const SizedBox(height: 8),
 
-          /// RESULTS GRID
+          /// RESULTS
           Expanded(
             child: results.isEmpty
                 ? const Center(
-                    child: Text(
-                      'No results',
-                      style: TextStyle(color: Colors.white54),
-                    ),
+                    child: Text('No results',
+                        style: TextStyle(color: Colors.white54)),
                   )
                 : LayoutBuilder(
                     builder: (context, constraints) {
