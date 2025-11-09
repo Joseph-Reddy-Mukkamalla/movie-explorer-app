@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,12 +22,42 @@ class _HomePageState extends State<HomePage> {
   late List<Movie> allMovies;
   String searchQuery = '';
   List<String> randomGenres = [];
+  late PageController _trendingPageController;
+  int _trendingCurrentPage = 0;
+  Timer? _trendingAutoTimer;
+  double _trendingViewportFraction = 0.56;
+  List<Movie> _trendingMovies = [];
+  late List<Movie> _randomPicks;
+  double _lastCarouselWidth = 0.0;
 
   @override
   void initState() {
     super.initState();
     allMovies = widget.movieService.movies;
     pickRandomGenres();
+    _trendingMovies = getTrendingMovies();
+    _randomPicks = getRandomMovies();
+    _trendingPageController = PageController(
+      viewportFraction: _trendingViewportFraction,
+      initialPage: _trendingMovies.isEmpty ? 0 : _trendingMovies.length,
+    );
+    _startTrendingAutoSlide();
+  }
+
+  void _startTrendingAutoSlide() {
+    _trendingAutoTimer?.cancel();
+    _trendingAutoTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_trendingMovies.isEmpty ||
+          !mounted ||
+          !_trendingPageController.hasClients) return;
+
+      final next = (_trendingCurrentPage + 1) % _trendingMovies.length;
+      _trendingPageController.animateToPage(
+        next + _trendingMovies.length,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   void pickRandomGenres() {
@@ -37,6 +68,20 @@ class _HomePageState extends State<HomePage> {
     final genresList = genresSet.toList();
     genresList.shuffle();
     randomGenres = genresList.take(5).toList();
+  }
+
+  void _ensureTrendingController(double viewportFraction) {
+    if ((_trendingViewportFraction - viewportFraction).abs() > 0.001) {
+      final current = _trendingCurrentPage % _trendingMovies.length;
+      try {
+        _trendingPageController.dispose();
+      } catch (_) {}
+      _trendingViewportFraction = viewportFraction;
+      _trendingPageController = PageController(
+        viewportFraction: _trendingViewportFraction,
+        initialPage: current + _trendingMovies.length,
+      );
+    }
   }
 
   List<Movie> filterMovies(String genre) {
@@ -60,7 +105,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      // Custom gradient top bar to match OTT look
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(72),
         child: Container(
@@ -70,7 +114,6 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
               child: Row(
                 children: [
-                  // App icon and title
                   Row(
                     children: [
                       SvgPicture.asset(
@@ -95,7 +138,6 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const Spacer(),
-                  // Actions on the right
                   Row(
                     children: [
                       MouseRegion(
@@ -105,7 +147,8 @@ class _HomePageState extends State<HomePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => FavoritesPage(movieService: widget.movieService),
+                                builder: (_) => FavoritesPage(
+                                    movieService: widget.movieService),
                               ),
                             );
                           },
@@ -131,7 +174,8 @@ class _HomePageState extends State<HomePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => SearchPage(movieService: widget.movieService),
+                                builder: (_) =>
+                                    SearchPage(movieService: widget.movieService),
                               ),
                             );
                           },
@@ -160,7 +204,6 @@ class _HomePageState extends State<HomePage> {
       body: Column(
         children: [
           const SizedBox(height: 16),
-          // Expanded list
           Expanded(
             child: allMovies.isEmpty
                 ? Center(
@@ -178,12 +221,12 @@ class _HomePageState extends State<HomePage> {
                     ? LayoutBuilder(
                         builder: (context, constraints) {
                           final cardWidth = 160.0;
-                          final crossAxisCount = max(
-                              2,
-                              (constraints.maxWidth / cardWidth).floor());
+                          final crossAxisCount =
+                              max(2, (constraints.maxWidth / cardWidth).floor());
                           return GridView.builder(
                             padding: const EdgeInsets.all(16),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: crossAxisCount,
                               childAspectRatio: 0.55,
                               crossAxisSpacing: 12,
@@ -212,8 +255,8 @@ class _HomePageState extends State<HomePage> {
                       )
                     : ListView(
                         children: [
-                          buildSection("Trending", getTrendingMovies()),
-                          buildSection("Random Picks", getRandomMovies()),
+                          buildTrendingCarousel(getTrendingMovies()),
+                          buildSection("Random Picks", _randomPicks),
                           for (var genre in randomGenres)
                             buildSection(genre, filterMovies(genre)),
                           const SizedBox(height: 16),
@@ -225,16 +268,303 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  @override
+  void dispose() {
+    _trendingAutoTimer?.cancel();
+    _trendingPageController.dispose();
+    super.dispose();
+  }
+
+  double _getProgressiveScale(int index) {
+    // Calculate how far this card is from the center
+    final currentPage = _trendingCurrentPage % _trendingMovies.length;
+    final itemPosition = index % _trendingMovies.length;
+    final distance = (itemPosition - currentPage).abs();
+
+    // Apply progressively smaller scale based on distance from center
+    if (distance == 1) return 0.90;
+    if (distance == 2) return 0.75;
+    return 0.70; // For cards further away
+  }
+
+  Widget buildTrendingCarousel(List<Movie> movies) {
+    if (movies.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 380,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final int visibleCount =
+              (width / 220).floor().clamp(1, 8); // Reduced base width to show more posters
+          final viewportFraction = 1 / visibleCount;
+          final desiredCardWidth =
+              (width * viewportFraction) * 0.9; // Increased to show larger center card
+
+          if ((width - _lastCarouselWidth).abs() > 4.0 ||
+              (_trendingViewportFraction - viewportFraction).abs() > 0.001) {
+            _lastCarouselWidth = width;
+            _ensureTrendingController(viewportFraction);
+          }
+
+          return Stack(
+            children: [
+              PageView.builder(
+                controller: _trendingPageController,
+                itemCount: _trendingMovies.length * 3,
+                onPageChanged: (index) {
+                  final realIndex = index % _trendingMovies.length;
+                  setState(() => _trendingCurrentPage = index);
+
+                  if (index < _trendingMovies.length) {
+                    _trendingPageController
+                        .jumpToPage(index + _trendingMovies.length);
+                  } else if (index >= _trendingMovies.length * 2) {
+                    _trendingPageController
+                        .jumpToPage(index - _trendingMovies.length);
+                  }
+                },
+                physics: const BouncingScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final movie = _trendingMovies[index % _trendingMovies.length];
+                  final bool isCentered = (index % _trendingMovies.length) ==
+                      (_trendingCurrentPage % _trendingMovies.length);
+
+                  return AnimatedPadding(
+                    duration: const Duration(milliseconds: 300),
+                    padding: EdgeInsets.symmetric(
+                      vertical: isCentered ? 0 : 16,
+                      horizontal: 8,
+                    ),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (!isCentered) {
+                            _trendingPageController.animateToPage(
+                              index,
+                              duration: const Duration(milliseconds: 450),
+                              curve: Curves.easeInOut,
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MovieDetailsPage(
+                                  movie: movie,
+                                  movieService: widget.movieService,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: AnimatedScale(
+                          scale: isCentered ? 1.0 : _getProgressiveScale(index),
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: desiredCardWidth,
+                                    maxHeight: 300, // Increased height for posters
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Stack(
+                                      children: [
+                                        Image.network(
+                                          movie.posterUrl,
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.center,
+                                          errorBuilder: (context, error,
+                                                  stackTrace) =>
+                                              Container(
+                                            color: Colors.black26,
+                                            child: Center(
+                                              child: Text(
+                                                movie.title,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                    color: Colors.white60,
+                                                    fontSize: 14),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black54,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.star,
+                                                    color: Colors.amber,
+                                                    size: 14),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  movie.voteAverage
+                                                      .toStringAsFixed(1),
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: desiredCardWidth,
+                                child: Text(
+                                  movie.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Left Arrow
+              Positioned(
+                left: 6,
+                top: 0,
+                bottom: 32,
+                child: Center(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                        color: Colors.black45, shape: BoxShape.circle),
+                    child: IconButton(
+                      icon: const Icon(Icons.chevron_left, color: Colors.white),
+                      onPressed: () {
+                        if (_trendingMovies.isEmpty) return;
+                        final prev =
+                            ((_trendingCurrentPage - 1) % _trendingMovies.length);
+                        _trendingPageController.animateToPage(
+                          prev + _trendingMovies.length,
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              // Right Arrow
+              Positioned(
+                right: 6,
+                top: 0,
+                bottom: 32,
+                child: Center(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                        color: Colors.black45, shape: BoxShape.circle),
+                    child: IconButton(
+                      icon:
+                          const Icon(Icons.chevron_right, color: Colors.white),
+                      onPressed: () {
+                        if (_trendingMovies.isEmpty) return;
+                        final next =
+                            ((_trendingCurrentPage + 1) % _trendingMovies.length);
+                        _trendingPageController.animateToPage(
+                          next + _trendingMovies.length,
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              // Dots Indicator
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 6,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(_trendingMovies.length, (i) {
+                      final active =
+                          i == (_trendingCurrentPage % _trendingMovies.length);
+                      return MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () =>
+                              _trendingPageController.animateToPage(
+                            i + _trendingMovies.length,
+                            duration: const Duration(milliseconds: 450),
+                            curve: Curves.easeInOut,
+                          ),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: active ? 12 : 8,
+                            height: active ? 12 : 8,
+                            decoration: BoxDecoration(
+                              color: active ? Colors.white : Colors.white24,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  //
+  // --- METHODS MOVED BACK INSIDE THE CLASS ---
+  //
+
   Widget buildSection(String title, List<Movie> movies) {
     if (movies.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(title,
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+          child: Text(
+            title,
+            style: const TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
         ),
         SizedBox(
           height: 250,
@@ -267,14 +597,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Trending: top 5 by popularity
   List<Movie> getTrendingMovies() {
     final list = List<Movie>.from(allMovies);
     list.sort((a, b) => b.popularity.compareTo(a.popularity));
     return list.take(10).toList();
   }
 
-  // Random Picks: 10 random movies
   List<Movie> getRandomMovies() {
     final list = List<Movie>.from(allMovies)..shuffle();
     return list.take(10).toList();
