@@ -10,7 +10,7 @@ void main() async {
   // Debug: print loaded movie count so it's visible in the terminal/console
   // This helps diagnose why the UI may show no movies.
   // You can remove this after debugging.
-  // ignore: avoid_print
+  // ignore: avoid_print abc
   print('Loaded ${movies.length} movies from assets/movies.csv');
   runApp(MyApp(movies: movies));
 }
