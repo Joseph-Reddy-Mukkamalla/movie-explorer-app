@@ -8,6 +8,52 @@ import 'movie_details_page.dart';
 
 enum SortBy { popularity, voteCount, voteAverage, releaseDate }
 
+const Map<String, String> languageNames = {
+  'en': 'English',
+  'ja': 'Japanese',
+  'fr': 'French',
+  'hi': 'Hindi',
+  'es': 'Spanish',
+  'ru': 'Russian',
+  'de': 'German',
+  'th': 'Thai',
+  'ko': 'Korean',
+  'tr': 'Turkish',
+  'cn': 'Chinese (Simplified)',
+  'zh': 'Chinese (Mandarin)',
+  'it': 'Italian',
+  'pt': 'Portuguese',
+  'ml': 'Malayalam',
+  'pl': 'Polish',
+  'fi': 'Finnish',
+  'no': 'Norwegian',
+  'da': 'Danish',
+  'id': 'Indonesian',
+  'sv': 'Swedish',
+  'nl': 'Dutch',
+  'te': 'Telugu',
+  'sr': 'Serbian',
+  'is': 'Icelandic',
+  'ro': 'Romanian',
+  'tl': 'Tagalog (Filipino)',
+  'fa': 'Persian (Farsi)',
+  'uk': 'Ukrainian',
+  'nb': 'Norwegian Bokmål',
+  'eu': 'Basque',
+  'lv': 'Latvian',
+  'ar': 'Arabic',
+  'el': 'Greek',
+  'cs': 'Czech',
+  'ms': 'Malay',
+  'bn': 'Bengali',
+  'ca': 'Catalan',
+  'la': 'Latin',
+  'ta': 'Tamil',
+  'hu': 'Hungarian',
+  'he': 'Hebrew',
+  'et': 'Estonian',
+};
+
 class SearchPage extends StatefulWidget {
   final MovieService movieService;
   const SearchPage({required this.movieService, super.key});
@@ -49,7 +95,9 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     genres = g.toList()..sort();
-    languages = l.toList()..sort();
+    // Sort language codes by their display names (if available) so the dropdown shows alphabetical names
+    languages = l.toList()
+      ..sort((a, b) => (languageNames[a] ?? a).compareTo(languageNames[b] ?? b));
     years = y.toList()..sort((a, b) => b.compareTo(a));
   }
 
@@ -187,8 +235,13 @@ class _SearchPageState extends State<SearchPage> {
                             value: null,
                             child: Text('Language',
                                 style: TextStyle(color: Colors.white))),
-                        ...languages
-                            .map((l) => DropdownMenuItem(value: l, child: Text(l))),
+                        ...languages.map((l) => DropdownMenuItem(
+                              value: l,
+                              child: Text(
+                                languageNames[l] ?? l,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            )),
                       ],
                       onChanged: (v) => setState(() => selectedLanguage = v),
                       decoration: const InputDecoration(
