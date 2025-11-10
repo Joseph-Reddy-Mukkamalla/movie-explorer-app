@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/movie.dart';
 import '../services/movie_service.dart';
 import '../services/storage_service.dart';
@@ -18,6 +19,7 @@ class FavoritesPage extends StatefulWidget {
 class _FavoritesPageState extends State<FavoritesPage> {
   List<Movie> favorites = [];
   bool loading = true;
+  bool _isFavoritesBackHover = false;
 
   @override
   void initState() {
@@ -45,10 +47,37 @@ class _FavoritesPageState extends State<FavoritesPage> {
         child: Container(
           color: Colors.black,
           child: SafeArea(
-            child: Padding(
+              child: Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
               child: Row(
                 children: [
+                  MouseRegion(
+                    onEnter: (_) => setState(() => _isFavoritesBackHover = true),
+                    onExit: (_) => setState(() => _isFavoritesBackHover = false),
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).maybePop(),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: _isFavoritesBackHover ? Colors.white12 : Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/icons/back_arrow.svg',
+                            width: 20,
+                            height: 20,
+                            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                            semanticsLabel: 'Back',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Text(
                     'Favorites',
                     style: GoogleFonts.poppins(
