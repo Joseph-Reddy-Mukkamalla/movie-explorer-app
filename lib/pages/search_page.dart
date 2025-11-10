@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/movie.dart';
 import '../services/movie_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/movie_card.dart';
 import 'movie_details_page.dart';
 
@@ -173,7 +174,7 @@ class _SearchPageState extends State<SearchPage> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: _isSearchBackHover ? Colors.white12 : Colors.transparent,
+                          color: _isSearchBackHover ? AppTheme.primary.withOpacity(0.2) : Colors.transparent,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -181,7 +182,7 @@ class _SearchPageState extends State<SearchPage> {
                             'assets/icons/back_arrow.svg',
                             width: 20,
                             height: 20,
-                            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                            colorFilter: const ColorFilter.mode(AppTheme.primary, BlendMode.srcIn),
                             semanticsLabel: 'Back',
                           ),
                         ),

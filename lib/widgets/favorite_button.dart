@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../services/storage_service.dart';
+import '../theme/app_theme.dart';
 
 class FavoriteButton extends StatefulWidget {
   final Movie movie;
@@ -47,7 +48,7 @@ class _FavoriteButtonState extends State<FavoriteButton> {
         onTap: toggleFavorite,
         child: Icon(
           isFavorite ? Icons.favorite : Icons.favorite_border,
-          color: Colors.redAccent,
+          color: AppTheme.primary,
           size: 20,
         ),
       ),

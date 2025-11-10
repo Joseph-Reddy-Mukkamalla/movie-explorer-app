@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/movie.dart';
 import '../services/movie_service.dart';
 import '../widgets/movie_card.dart';
+import '../theme/app_theme.dart';
 import 'movie_details_page.dart';
 import 'favorites_page.dart';
 import 'search_page.dart';
@@ -148,7 +149,7 @@ class _HomePageState extends State<HomePage> {
                         width: 32,
                         height: 32,
                         colorFilter: const ColorFilter.mode(
-                          Colors.deepPurpleAccent,
+                          AppTheme.primary,
                           BlendMode.srcIn,
                         ),
                       ),
@@ -182,12 +183,12 @@ class _HomePageState extends State<HomePage> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
+                              color: AppTheme.primary.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.favorite_border,
-                              color: Colors.white,
+                              color: AppTheme.primary,
                               size: 20,
                             ),
                           ),
@@ -209,12 +210,12 @@ class _HomePageState extends State<HomePage> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
+                              color: AppTheme.primary.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.search_rounded,
-                              color: Colors.white,
+                              color: AppTheme.primary,
                               size: 20,
                             ),
                           ),
@@ -558,7 +559,7 @@ class _HomePageState extends State<HomePage> {
                             width: active ? 12 : 8,
                             height: active ? 12 : 8,
                             decoration: BoxDecoration(
-                              color: active ? Colors.white : Colors.white24,
+                              color: active ? AppTheme.primary : AppTheme.primaryLight,
                               shape: BoxShape.circle,
                             ),
                           ),

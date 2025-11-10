@@ -5,6 +5,7 @@ import 'helpers/csv_parser.dart';
 import 'services/movie_service.dart';
 import 'pages/home_page.dart';
 import 'models/movie.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,13 +26,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final movieService = MovieService(movies);
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // remove debug banner
+      debugShowCheckedModeBanner: false,
       title: 'Movie Explorer',
-      theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.deepPurple,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(color: Colors.deepPurple),
-      ),
+      theme: AppTheme.getTheme(),
       home: HomePage(movieService: movieService),
     );
   }
