@@ -308,8 +308,8 @@ class _HomePageState extends State<HomePage> {
     final itemPosition = index % _trendingMovies.length;
     final distance = (itemPosition - currentPage).abs();
 
-    if (distance == 1) return 0.90;
-    if (distance == 2) return 0.75;
+    if (distance == 1 || distance == 9) return 0.90;
+    if (distance == 2 || distance == 8) return 0.75;
     return 0.70;
   }
 
