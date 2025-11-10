@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
   String searchQuery = '';
   List<String> randomGenres = [];
   late PageController _trendingPageController;
-  int _trendingCurrentPage = 0; // stores REAL index (0..len-1)
+  int _trendingCurrentPage = 0; // Will be set properly after init
   Timer? _trendingAutoTimer;
   double _trendingViewportFraction = 0.56;
   List<Movie> _trendingMovies = [];
@@ -38,19 +38,23 @@ class _HomePageState extends State<HomePage> {
     _trendingMovies = getTrendingMovies();
     _randomPicks = getRandomMovies();
 
-    // Initialize in the MIDDLE copy to enable seamless looping.
-    // If empty, keep initialPage = 0.
-    final initPage = _trendingMovies.isEmpty ? 0 : _trendingMovies.length;
+    final len = _trendingMovies.length;
+    final initPage = len == 0 ? 0 : len; // Start in middle copy
 
     _trendingPageController = PageController(
       viewportFraction: _trendingViewportFraction,
       initialPage: initPage,
     );
 
-    // current page should reflect the REAL index (0..len-1)
-    _trendingCurrentPage = 500000000;
+    // Set correct current page AFTER controller is created
+    _trendingCurrentPage = initPage;
 
-    _startTrendingAutoSlide();
+    // Start auto-slide only after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _startTrendingAutoSlide();
+      }
+    });
   }
 
   void _startTrendingAutoSlide() {
@@ -61,19 +65,19 @@ class _HomePageState extends State<HomePage> {
           !_trendingPageController.hasClients ||
           _trendingMovies.isEmpty) return;
 
-      // Always animate to the next REAL page, but target the middle-copy index.
-      final next = _trendingCurrentPage + 1;
+      final nextPage = _trendingCurrentPage + 1;
+
       _trendingPageController.animateToPage(
-        next,
+        nextPage,
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOut,
       );
-      _trendingCurrentPage = next;
 
+      // Update current page (no need to % here, we keep full index for infinite scroll)
+      _trendingCurrentPage = nextPage;
     });
   }
 
-  // Reset the auto-slide timer (used for ANY manual interaction).
   void _resetAutoSlideTimer() {
     _trendingAutoTimer?.cancel();
     _startTrendingAutoSlide();
@@ -93,15 +97,17 @@ class _HomePageState extends State<HomePage> {
     if ((_trendingViewportFraction - viewportFraction).abs() > 0.001) {
       final len = _trendingMovies.length;
       final currentReal = len == 0 ? 0 : _trendingCurrentPage % len;
+
       try {
         _trendingPageController.dispose();
       } catch (_) {}
+
       _trendingViewportFraction = viewportFraction;
       _trendingPageController = PageController(
         viewportFraction: _trendingViewportFraction,
-        // Always re-center on the middle copy for seamless loop
         initialPage: len == 0 ? 0 : currentReal + len,
       );
+      _trendingCurrentPage = len == 0 ? 0 : currentReal + len;
     }
   }
 
@@ -297,15 +303,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   double _getProgressiveScale(int index) {
-    // Calculate how far this card is from the center
     final currentPage = _trendingCurrentPage % _trendingMovies.length;
     final itemPosition = index % _trendingMovies.length;
     final distance = (itemPosition - currentPage).abs();
 
-    // Apply progressively smaller scale based on distance from center
     if (distance == 1) return 0.90;
     if (distance == 2) return 0.75;
-    return 0.70; // For cards further away
+    return 0.70;
   }
 
   Widget buildTrendingCarousel(List<Movie> movies) {
@@ -317,10 +321,10 @@ class _HomePageState extends State<HomePage> {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final int visibleCount =
-              (width / 220).floor().clamp(1, 8); // Reduced base width to show more posters
+              (width / 220).floor().clamp(1, 8);
           final viewportFraction = 1 / visibleCount;
           final desiredCardWidth =
-              (width * viewportFraction) * 0.9; // Increased to show larger center card
+              (width * viewportFraction) * 0.9;
 
           if ((width - _lastCarouselWidth).abs() > 4.0 ||
               (_trendingViewportFraction - viewportFraction).abs() > 0.001) {
@@ -330,24 +334,19 @@ class _HomePageState extends State<HomePage> {
 
           return Stack(
             children: [
-              // Wrap with GestureDetector to catch ANY user touch and reset timer.
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onPanDown: (_) {
-                  _resetAutoSlideTimer(); // manual swipe starts → reset
-                },
+                onPanDown: (_) => _resetAutoSlideTimer(),
                 child: PageView.builder(
                   controller: _trendingPageController,
-                  // 3 copies for seamless loop (prev/middle/next)
-                  itemCount: 10000000,  // effectively infinite
+                  itemCount: 10000000,
                   onPageChanged: (index) {
-                    final real = index % _trendingMovies.length;
                     setState(() => _trendingCurrentPage = index);
                   },
                   physics: const BouncingScrollPhysics(),
                   itemBuilder: (context, index) {
                     final len = _trendingMovies.length;
-                    final realIndex = index % _trendingMovies.length;
+                    final realIndex = index % len;
                     final movie = _trendingMovies[realIndex];
                     final bool isCentered =
                         (index % len) == (_trendingCurrentPage % len);
@@ -369,7 +368,7 @@ class _HomePageState extends State<HomePage> {
                                 duration: const Duration(milliseconds: 450),
                                 curve: Curves.easeInOut,
                               );
-                              _resetAutoSlideTimer(); // manual tap → reset
+                              _resetAutoSlideTimer();
                             } else {
                               Navigator.push(
                                 context,
@@ -393,7 +392,7 @@ class _HomePageState extends State<HomePage> {
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
                                       maxWidth: desiredCardWidth,
-                                      maxHeight: 300, // Increased height for posters
+                                      maxHeight: 300,
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
@@ -486,15 +485,14 @@ class _HomePageState extends State<HomePage> {
                       icon: const Icon(Icons.chevron_left, color: Colors.white),
                       onPressed: () {
                         if (_trendingMovies.isEmpty) return;
-                        final len = _trendingMovies.length;
-                        final prev = (_trendingCurrentPage - 1) % len;
-                        final target = prev < 0 ? prev + len : prev;
+                        final prevPage = _trendingCurrentPage - 1;
                         _trendingPageController.animateToPage(
-                          target + len, // middle copy
+                          prevPage,
                           duration: const Duration(milliseconds: 450),
                           curve: Curves.easeInOut,
                         );
-                        _resetAutoSlideTimer(); // manual arrow → reset
+                        _trendingCurrentPage = prevPage;
+                        _resetAutoSlideTimer();
                       },
                     ),
                   ),
@@ -514,16 +512,14 @@ class _HomePageState extends State<HomePage> {
                       icon: const Icon(Icons.chevron_right, color: Colors.white),
                       onPressed: () {
                         if (_trendingMovies.isEmpty) return;
-                        final len = _trendingMovies.length;
-                        final next = _trendingCurrentPage + 1;
+                        final nextPage = _trendingCurrentPage + 1;
                         _trendingPageController.animateToPage(
-                          next,
+                          nextPage,
                           duration: const Duration(milliseconds: 450),
                           curve: Curves.easeInOut,
                         );
-                        _trendingCurrentPage = next;
+                        _trendingCurrentPage = nextPage;
                         _resetAutoSlideTimer();
-
                       },
                     ),
                   ),
@@ -543,19 +539,19 @@ class _HomePageState extends State<HomePage> {
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
-                      onTap: () {
-                        final realCurrent = _trendingCurrentPage % _trendingMovies.length;
-                        final delta = i - realCurrent;
-                        final targetPage = _trendingCurrentPage + delta;
+                          onTap: () {
+                            final realCurrent = _trendingCurrentPage % _trendingMovies.length;
+                            final delta = i - realCurrent;
+                            final targetPage = _trendingCurrentPage + delta;
 
-                        _trendingPageController.animateToPage(
-                          targetPage,
-                          duration: const Duration(milliseconds: 450),
-                          curve: Curves.easeInOut,
-                        );
-
-                        _resetAutoSlideTimer();
-                      },
+                            _trendingPageController.animateToPage(
+                              targetPage,
+                              duration: const Duration(milliseconds: 450),
+                              curve: Curves.easeInOut,
+                            );
+                            _trendingCurrentPage = targetPage;
+                            _resetAutoSlideTimer();
+                          },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -578,10 +574,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  //
-  // --- METHODS MOVED BACK INSIDE THE CLASS ---
-  //
 
   Widget buildSection(String title, List<Movie> movies) {
     if (movies.isEmpty) return const SizedBox.shrink();
