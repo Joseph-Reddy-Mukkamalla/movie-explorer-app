@@ -1,0 +1,38 @@
+name: Build and Deploy Flutter Web
+
+on:
+  push:
+    branches: [ main ]   # runs automatically on push to main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- CHECKOUT REPO ---
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # --- SET UP FLUTTER ---
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # --- CLEAN & INSTALL ---
+      - name: Install dependencies
+        run: |
+          flutter clean
+          flutter pub get
+
+      # --- BUILD FLUTTER WEB ---
+      - name: Build Flutter Web
+        run: flutter build web --base-href /movie-explorer-app/
+
+      # --- DEPLOY TO GH-PAGES ---
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          publish_branch: gh-pages
