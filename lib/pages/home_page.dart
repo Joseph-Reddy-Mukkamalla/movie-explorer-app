@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import 'movie_details_page.dart';
 import 'favorites_page.dart';
 import 'search_page.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   final MovieService movieService;
@@ -217,6 +218,34 @@ class _HomePageState extends State<HomePage> {
                               Icons.search_rounded,
                               color: AppTheme.primary,
                               size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ProfilePage()),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: SvgPicture.asset(
+                              'assets/icons/profile.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(
+                                AppTheme.primary,
+                                BlendMode.srcIn,
+                              ),
                             ),
                           ),
                         ),
